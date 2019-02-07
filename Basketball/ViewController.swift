@@ -21,6 +21,7 @@ class ViewController: UIViewController {
         case hoop = 8
     }
     
+    let main = DispatchQueue.main
     // MARK: - ... Properties
     var ballNode: SCNNode?
 
@@ -301,9 +302,12 @@ extension ViewController: SCNPhysicsContactDelegate {
                     scoreCount += 1
                     print(scoreCount)
                     detect = true
-                    score.text = String(scoreCount)
+                    DispatchQueue.main.async {
+                        self.score.text = String(self.scoreCount)
+                    }
                 }
             }
         }
     }
 }
+

@@ -28,11 +28,13 @@ class ViewController: UIViewController {
     var hoopAdded = false
     var trueNodeTop = false
     var trueNodeBottom = false
+    var detect = false
     
-    var score: Int = 0
+    var scoreCount: Int = 0
     // MARK: - ... @IBOutlet
     @IBOutlet var sceneView: ARSCNView!
     
+    @IBOutlet weak var score: UILabel!
     
     ///////////////////////////////////////////////////////
     // MARK: - ... UIViewController Methods
@@ -75,8 +77,10 @@ class ViewController: UIViewController {
         // Pause the view's session
         sceneView.session.pause()
     }
-    ////////////////
-    ////////////////
+    
+    /////////////////////////////
+    /////////////////////////////
+    
     // MARK: - ... Custom Methods
     func createBasketball() {
         guard let ballNode = ballNode?.clone() ?? createNode(from: "Ball") else { return }
@@ -86,15 +90,18 @@ class ViewController: UIViewController {
         
         ballNode.simdTransform = frame.camera.transform
         
-        let body = SCNPhysicsBody(
-            type: .dynamic,
-            shape: SCNPhysicsShape(
-                node: ballNode,
-                options: [SCNPhysicsShape.Option.collisionMargin: 0.01]
-            )
-        )
+        let physicShape = SCNPhysicsShape(geometry: ballNode.geometry!, options: [SCNPhysicsShape.Option.collisionMargin: 0.01])
+        let body = SCNPhysicsBody(type: .dynamic, shape: physicShape)
+//        let body = SCNPhysicsBody(
+//            type: .dynamic,
+//            shape: SCNPhysicsShape(
+//                node: ballNode,
+//                options: [SCNPhysicsShape.Option.collisionMargin: 0.01]
+//            )
+//        )
+       
         body.categoryBitMask = bodyType.ball.rawValue
-        body.collisionBitMask = bodyType.hoop.rawValue
+        body.collisionBitMask = bodyType.hoop.rawValue | bodyType.ball.rawValue
         body.contactTestBitMask = bodyType.top.rawValue | bodyType.bottom.rawValue
         
         ballNode.physicsBody = body
@@ -115,6 +122,7 @@ class ViewController: UIViewController {
        // return ballNode
     }
     
+    ////////////////// Hoop
     func createHoop(result: ARHitTestResult) {
         guard let hoopNode = createNode(from: "Hoop") else { return }
         
@@ -141,20 +149,20 @@ class ViewController: UIViewController {
         sceneView.scene.rootNode.addChildNode(hoopNode)
         
     }
-    
+    ////////////// Detector
     func createCylinderBottom(result: ARHitTestResult)  {
         guard let cylinderBottomNode = createNode(from: "cylinder") else { return }
         
         cylinderBottomNode.simdTransform = result.worldTransform
-        cylinderBottomNode.scale = SCNVector3(0.3,0.025,0.3)
-        cylinderBottomNode.eulerAngles.x -= .pi / 2
-        
-        cylinderBottomNode.position.x -= 0.0
-        cylinderBottomNode.position.z += 0.5
-        cylinderBottomNode.position.y -= 0.6
+        //cylinderBottomNode.scale = SCNVector3(0.3,0.025,0.3)
+        //cylinderBottomNode.eulerAngles.x -= .pi / 2
         
         let physicShape = SCNPhysicsShape(geometry: cylinderBottomNode.geometry!, options: nil)
         let bodyDown = SCNPhysicsBody(type: .kinematic, shape: physicShape)
+        
+        cylinderBottomNode.position.x -= 0.0
+        cylinderBottomNode.position.z += 0.4
+        cylinderBottomNode.position.y -= 1
         
         bodyDown.categoryBitMask = bodyType.bottom.rawValue
         bodyDown.collisionBitMask = bodyType.none.rawValue
@@ -167,21 +175,21 @@ class ViewController: UIViewController {
         sceneView.scene.rootNode.addChildNode(cylinderBottomNode)
     }
     
-    
+    /////////////// Detector
     func createCylinderTop(result: ARHitTestResult) {
       
         guard let cylinderTopNode = createNode(from: "cylinder") else { return }
        
         cylinderTopNode.simdTransform = result.worldTransform
-        cylinderTopNode.scale = SCNVector3(0.3,0.025,0.3)
-        cylinderTopNode.eulerAngles.x -= .pi / 2
-        
-        cylinderTopNode.position.x -= 0.0   //-035 right left
-        cylinderTopNode.position.z += 0.5    //+06 //05 045 0.65
-        cylinderTopNode.position.y -= 0.4
+        //cylinderTopNode.scale = SCNVector3(0.3,0.025,0.3)
+        //cylinderTopNode.eulerAngles.x -= .pi / 2
         
         let physicShape = SCNPhysicsShape(geometry: cylinderTopNode.geometry!, options: nil)
         let bodyTop = SCNPhysicsBody(type: .kinematic, shape: physicShape)
+        
+        cylinderTopNode.position.x -= 0.0   //-035 right left
+        cylinderTopNode.position.z += 0.4    //+06 //05 045 0.65
+        cylinderTopNode.position.y -= 0.1
         
         bodyTop.categoryBitMask = bodyType.top.rawValue
         bodyTop.collisionBitMask = bodyType.none.rawValue
@@ -194,7 +202,8 @@ class ViewController: UIViewController {
         sceneView.scene.rootNode.addChildNode(cylinderTopNode)
     }
     
-/////////////////
+///////////////////////
+///////////////////////
     
     func createNode(from name: String) -> SCNNode? {
         guard let scene = SCNScene(named: "art.scnassets/\(name).scn") else {
@@ -250,14 +259,9 @@ class ViewController: UIViewController {
             createCylinderBottom(result: result)
             createCylinderTop(result: result)
         } else {
-            if(trueNodeBottom == true && trueNodeTop == true) {
-                score += 1
-                print(score)
-                
-            }
             createBasketball()
-            trueNodeTop = false
             trueNodeBottom = false
+            detect = false
         }
     }
     
@@ -278,21 +282,28 @@ extension ViewController: SCNPhysicsContactDelegate {
     
     func physicsWorld(_ world: SCNPhysicsWorld, didBegin contact: SCNPhysicsContact) {
 
-        let nodeA = contact.nodeA
-        let nodeB = contact.nodeB
-        //print("???????????")
-        if (nodeA.physicsBody?.contactTestBitMask == bodyType.ball.rawValue) /* && nodeB.physicsBody?.contactTestBitMask == bodyType.ball.rawValue) || (nodeB.physicsBody?.contactTestBitMask == bodyType.ball.rawValue && nodeA.physicsBody?.contactTestBitMask == bodyType.top.rawValue)*/ {
-print("???????????")
-             trueNodeTop = true
+        if (detect == false) {
+            let nodeA = contact.nodeA
+            let nodeB = contact.nodeB
             
-        }
-        if trueNodeTop == true{
-            if nodeB.physicsBody?.contactTestBitMask == bodyType.ball.rawValue /* && nodeB.physicsBody?.contactTestBitMask == bodyType.bottom.rawValue) || (nodeB.physicsBody?.contactTestBitMask == bodyType.ball.rawValue && nodeA.physicsBody?.contactTestBitMask == bodyType.bottom.rawValue) */{
-                trueNodeBottom = true
-              print("?????")
+            
+            if nodeA.physicsBody?.categoryBitMask == bodyType.ball.rawValue && nodeB.physicsBody?.categoryBitMask == bodyType.top.rawValue || nodeB.physicsBody?.categoryBitMask == bodyType.ball.rawValue && nodeA.physicsBody?.categoryBitMask == bodyType.top.rawValue {
+                trueNodeTop = true
+                print("trueNodeTop \(trueNodeTop)")
+            }
+            
+            if trueNodeTop == true && trueNodeBottom == false {
+                if nodeA.physicsBody?.categoryBitMask == bodyType.ball.rawValue && nodeB.physicsBody?.categoryBitMask == bodyType.bottom.rawValue || nodeB.physicsBody?.categoryBitMask == bodyType.ball.rawValue && nodeA.physicsBody?.categoryBitMask == bodyType.bottom.rawValue {
+                    
+                    trueNodeBottom = true
+                    trueNodeTop = false
+                    print("trueNodeBottom \(trueNodeBottom)")
+                    scoreCount += 1
+                    print(scoreCount)
+                    detect = true
+                    score.text = String(scoreCount)
+                }
             }
         }
-        
-        
     }
 }

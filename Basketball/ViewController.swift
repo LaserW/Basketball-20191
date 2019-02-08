@@ -163,7 +163,7 @@ class ViewController: UIViewController {
         
         cylinderBottomNode.position.x -= 0.0
         cylinderBottomNode.position.z += 0.4
-        cylinderBottomNode.position.y -= 1
+        cylinderBottomNode.position.y -= 0.8
         
         bodyDown.categoryBitMask = bodyType.bottom.rawValue
         bodyDown.collisionBitMask = bodyType.none.rawValue
@@ -190,7 +190,7 @@ class ViewController: UIViewController {
         
         cylinderTopNode.position.x -= 0.0   //-035 right left
         cylinderTopNode.position.z += 0.4    //+06 //05 045 0.65
-        cylinderTopNode.position.y -= 0.1
+        cylinderTopNode.position.y -= 0.2
         
         bodyTop.categoryBitMask = bodyType.top.rawValue
         bodyTop.collisionBitMask = bodyType.none.rawValue
@@ -262,6 +262,7 @@ class ViewController: UIViewController {
         } else {
             createBasketball()
             trueNodeBottom = false
+            trueNodeTop = false
             detect = false
         }
     }
@@ -287,10 +288,11 @@ extension ViewController: SCNPhysicsContactDelegate {
             let nodeA = contact.nodeA
             let nodeB = contact.nodeB
             
-            
-            if nodeA.physicsBody?.categoryBitMask == bodyType.ball.rawValue && nodeB.physicsBody?.categoryBitMask == bodyType.top.rawValue || nodeB.physicsBody?.categoryBitMask == bodyType.ball.rawValue && nodeA.physicsBody?.categoryBitMask == bodyType.top.rawValue {
-                trueNodeTop = true
-                print("trueNodeTop \(trueNodeTop)")
+            if trueNodeTop == false {
+                if nodeA.physicsBody?.categoryBitMask == bodyType.ball.rawValue && nodeB.physicsBody?.categoryBitMask == bodyType.top.rawValue || nodeB.physicsBody?.categoryBitMask == bodyType.ball.rawValue && nodeA.physicsBody?.categoryBitMask == bodyType.top.rawValue {
+                    trueNodeTop = true
+                    print("trueNodeTop \(trueNodeTop), detect \(detect), trueNodeBottom \(trueNodeBottom)")
+                }
             }
             
             if trueNodeTop == true && trueNodeBottom == false {
